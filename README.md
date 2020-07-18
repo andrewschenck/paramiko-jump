@@ -29,6 +29,6 @@ if __name__ == '__main__':
     )
 
     stdin, stdout, stderr = ssh.exec_command('show version')
-    print(stdout.read())
+    print(stdout.read().decode())
     
 ```
