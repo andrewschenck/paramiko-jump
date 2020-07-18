@@ -119,25 +119,3 @@ class SSHJumpClient(paramiko.SSHClient):
         super().close()
         if self._jump_channel.active:
             self._jump_channel.close()
-
-
-##
-# Test
-##
-if __name__ == '__main__':
-    jump_host_example = 'jump-host'
-    target_host_example = 'target-host'
-
-    username = input(f'{target_host_example} Username: ')
-    password = getpass(f'{target_host_example} Password: ')
-
-    ssh = SSHJumpClient(jump_host=jump_host_example)
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    ssh.connect(
-        hostname=target_host_example,
-        username=username,
-        password=password,
-    )
-
-    stdin, stdout, stderr = ssh.exec_command('show version')
-    print(stdout.read())
