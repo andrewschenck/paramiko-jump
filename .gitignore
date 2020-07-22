@@ -1,0 +1,14 @@
+.DS_Store
+#
+.idea/
+venv/
+.coverage
+__pycache__/
+.pytest_cache
+#
+build/
+dist/
+.eggs/
+*.egg-info/
+#
+*.swp
