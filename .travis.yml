@@ -5,7 +5,8 @@ python:
   - 3.8
   - 3.8-dev
   - nightly
-#install:
+install:
+  - true
 #  - pip install -r test-requirements.txt
 before_script:
   - export PYTHONPATH=.:${PYTHONPATH}
