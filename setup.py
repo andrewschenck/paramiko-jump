@@ -18,7 +18,8 @@ setup(
     license='Apache License 2.0',
     author='Andrew Blair Schenck',
     author_email='aschenck@gmail.com',
-    description='Paramiko + jump host + multi-factor authentication simplified.',
+    description='Paramiko + jump host (SSH Proxy) + multi-factor '
+                'authentication simplified.',
     long_description=README,
     long_description_content_type='text/x-rst',
 )
