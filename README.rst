@@ -116,7 +116,7 @@ In this example, we allow Paramiko to authenticate using its normal algorithm; i
         target2.close()
 
 
-Example 2b: Same as 2a, No Context Manager (Just for Fun)
+Example 2b: Same as 2a, no context manager (Just for fun)
 ---------------------------------------------------------
 
 .. code-block::
@@ -144,7 +144,7 @@ Example 2b: Same as 2a, No Context Manager (Just for Fun)
     target2 = SSHJumpClient(jump_session=jumper)
     target2.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     target2.connect(
-        hostname=target_host1,
+        hostname=target_host2,
         username=username2,
         password=password2,
         look_for_keys=False,
