@@ -16,8 +16,8 @@ setup(
     install_requires=install_requires,
     url='https://github.com/andrewschenck/paramiko-jump',
     license='Apache License 2.0',
-    author='Andrew Blair Schenck',
-    author_email='aschenck@gmail.com',
+    author='Andrew Blair Schenck, Tyler Bruno',
+    author_email='aschenck@gmail.com, tybruno117@gmail.com',
     description='Paramiko + jump host (SSH Proxy) + multi-factor '
                 'authentication simplified.',
     long_description=README,

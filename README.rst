@@ -60,8 +60,8 @@ between the Jump Host and the Target Host.
         target.close()
 
 
-Example 2a: Open one Jump Channel, connect to multiple targets
---------------------------------------------------------------
+Usage Example 2a: Open one Jump Channel, connect to multiple targets
+--------------------------------------------------------------------
 
 In this example, we allow Paramiko to authenticate using its normal algorithm; if we have an SSH key on the Jump Host, Paramiko will use it to authenticate our session between the Jump Host and the Target Hosts.
 
@@ -116,8 +116,8 @@ In this example, we allow Paramiko to authenticate using its normal algorithm; i
         target2.close()
 
 
-Example 2b: Same as 2a, no context manager (Just for fun)
----------------------------------------------------------
+Usage Example 2b: Same as 2a, no context manager (Just for fun)
+---------------------------------------------------------------
 
 .. code-block::
 

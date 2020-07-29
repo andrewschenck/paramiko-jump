@@ -65,7 +65,7 @@ class SSHJumpClient(SSHClient):
     def __init__(
             self,
             *,
-            jump_session: SSHClient = None,
+            jump_session: Optional[SSHClient] = None,
             auth_handler: Optional[Callable] = None,
     ):
         """
