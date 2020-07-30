@@ -22,14 +22,14 @@ Prompt = Tuple[AnyStr, bool]
 Optional[Callable] = None
 
 
-class StatefulAuthHandler:
+class DummyAuthHandler:
     """Stateful auth handler for paramiko that will return a list of auth
      parameters for every CLI prompt
 
     Example
     -------
-        >>> from paramiko_jump.util import StatefulAuthHandler
-        >>> handler = StatefulAuthHandler(['password'],['1'])
+        >>> from paramiko_jump.util import DummyAuthHandler
+        >>> handler = DummyAuthHandler(['password'],['1'])
         >>> handler()
         ['password']
         >>> handler()
@@ -40,8 +40,6 @@ class StatefulAuthHandler:
     _iterator: Iterator
         Iterator to iterate through all the objects in an iteratable object
     """
-
-    _iterator = None
 
     def __init__(self, *items: Sequence):
         self._iterator = iter(items)
