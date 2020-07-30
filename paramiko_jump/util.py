@@ -41,10 +41,10 @@ class DummyAuthHandler:
         Iterator to iterate through all the objects in an iteratable object
     """
 
-    def __init__(self, *items: Sequence):
+    def __init__(self, *items):
         self._iterator = iter(items)
 
-    def __call__(self, *args: Sequence, **kwargs: Sequence):
+    def __call__(self, *args, **kwargs):
         try:
             return next(self)
         except StopIteration:
