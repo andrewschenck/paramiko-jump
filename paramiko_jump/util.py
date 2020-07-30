@@ -1,104 +1,129 @@
-from getpass import getpass
-from paramiko_jump.client import SSHJumpClient
+"""
+Utility functions and classes designed to help simplify paramiko jump as well as add extra features.
 
+"""
+from getpass import getpass
+
+from contextlib import contextmanager
 from typing import (
     AnyStr,
     Tuple,
+    Iterator,
     Sequence,
-    List,
-    BinaryIO,
-    SupportsInt,
+    Optional,
+    Callable,
 )
+from paramiko_jump.client import SSHJumpClient
+
+import paramiko
+
 
 Prompt = Tuple[AnyStr, bool]
+Optional[Callable] = None
 
-class JumpHost:
 
-    def __init__(self,hostname,username,password,auth_handler=None):
-        self.hostname = hostname
-        self.username = username
-        self.password = password
-        self.auth_handler = auth_handler
-        self.jumper = SSHJumpClient(auth_handler=auth_handler)
+class StatefulAuthHandler:
+    """Stateful auth handler for paramiko that will return a list of auth
+     parameters for every CLI prompt
 
-    def __enter__(self):
-        self.jumper.connect(hostname=self.hostname,username=self.username,password=self.password,look_for_keys=False,allow_agent=False)
-        return self.jumper
+    Example
+    -------
+        >>> from paramiko_jump.util import StatefulAuthHandler
+        >>> handler = StatefulAuthHandler(['password'],['1'])
+        >>> handler()
+        ['password']
+        >>> handler()
+        ['1']
 
-    def __exit__(self):
-        self.jumper.close()
+    Attributes
+    ----------
+    _iterator: Iterator
+        Iterator to iterate through all the objects in an iteratable object
+    """
 
-def duo_auth(password: AnyStr = "", duo_push: BinaryIO = True,passcode: SupportsInt = 0):
-    def duo_handler(
-            title: AnyStr,
-            instructions: AnyStr,
-            prompt_list: Sequence[Prompt],
-    ) -> List[AnyStr]:
-        """
-        The purpose of this handler is to automate auth handlers that use duo. This removes prompting the user to
-        enter password and duo auth mode so that auth can be handled programmatically without user input at run time.
+    _iterator = None
 
-        Authentication callback, for keyboard-interactive
-        authentication that uses DUO Auth.
+    def __init__(self, *items: Sequence):
+        self._iterator = iter(items)
 
-        Example:
-            # set the duo_handler password that will be entered to console
-            duo_handler.password = password
-            with SSHJumpClient(auth_handler=duo_handler) as jumper:
-                jumper.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                jumper.connect(
-                    hostname=jump_host,
-                    username=jump_user,
-                )
-                # Now I instantiate a session for the Jump Host <-> Target
-                # Host connection, and inject the jump_session to use for
-                # proxying.
-                target = SSHJumpClient(jump_session=jumper)
-                target.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                target.connect(
-                    hostname=target_host,
-                    username=username,
-                    password=password,
-                    look_for_keys=False,
-                    allow_agent=False,
-                )
-                _, stdout, _ = target.exec_command('sh ip int br')
-                print(stdout.read().decode())
-                target.close()
+    def __call__(self, *args: Sequence, **kwargs: Sequence):
+        try:
+            return next(self)
+        except StopIteration:
+            return []
 
-        :param title:
-            Displayed to the end user before anything else.
-        :param instructions:
-            Displayed to the end user. Typically contains text explaining
-            the authentication scheme and / or legal disclaimers.
-        :param prompt_list:
-            A Sequence of (AnyStr, bool). Each string element is
-            displayed as an end-user input prompt. The corresponding
-            boolean element indicates whether the user input should
-            be 'echoed' back to the terminal during the interaction.
-        """
-        answers = []
-        if title:
-            print(title)
-        if instructions:
-            print(instructions)
-        for prompt, show_input in prompt_list:
+    def __iter__(self):
+        return self
 
-            if 'password' in prompt.lower() and password:
-                answers.append(password)
-            elif 'duo' in prompt.lower():
-                if duo_push is True:
-                    print("Approve Duo Mobile Login Request On Your Device ")
-                    answers.append("1")
-                else:
-                    if passcode:
-                        answers.append(passcode)
-                    else:
-                        input_ = input if show_input else getpass
-                        answers.append(input_(prompt))
-            else:
-                input_ = input if show_input else getpass
-                answers.append(input_(prompt))
-        return answers
+    def __next__(self):
+        return next(self._iterator)
 
-    return duo_handler
+
+@contextmanager
+def jump_host(
+    hostname: AnyStr,
+    username: AnyStr,
+    password: AnyStr,
+    auth_handler=None,
+    look_for_keys=True,
+):
+    """
+    Context manager for SSHJumpClient to further simplify the SSHJumpClient Context
+    Manger by handling connecting and closing to the jump host
+
+    Example
+    -------
+    >>> from getpass import getpass
+    >>> import paramiko
+    >>> from paramiko_jump import SSHJumpClient, simple_auth_handler
+    >>> jump_hostname = 'network-tools'
+    >>> jump_user = input(f'{jump_host} Username: ')
+    >>> target_host1 = 'some-host-1'
+    >>> password1 = getpass(f'{target_host1} Password: ')
+    >>> with jump_host(hostname=jump_hostname,username=jump_user,password=password) as jump:
+    >>>     target1 = SSHJumpClient(jump_session=jumper)
+    >>>     target1.connect(
+    >>>         hostname=target_host1,
+    >>>         username=jump_user,
+    >>>         password=password1,
+    >>>         look_for_keys=False,
+    >>>         allow_agent=False,
+    >>>     )
+    >>>     _, stdout, _ = target1.exec_command('sh ver')
+    >>>     print(stdout.read().decode())
+    >>>     target1.close()
+
+
+    :param hostname:
+        The hostname of the jump host.
+    :param username:
+        The username used to authenticate with the jump host.
+    :param password:
+        Password used to authenticate with the jump host.
+    :param auth_handler:
+        If provided, keyboard-interactive authentication will be
+        implemented, using this handler as the callback. If this
+        is set to None, use Paramiko's default authentication
+        algorithm instead of forcing keyboard-interactive
+        authentication.
+    :param look_for_keys:
+        Gives Paramiko permission to look around in our ~/.ssh folder to discover
+        SSH keys on its own (Default False)
+    :return:
+        Connected SSHJumpClient
+    """
+    jumper = SSHJumpClient(auth_handler=auth_handler)
+    if not look_for_keys:
+        jumper.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    try:
+
+        jumper.connect(
+            hostname=hostname,
+            username=username,
+            password=password,
+            look_for_keys=look_for_keys,
+            allow_agent=False,
+        )
+        yield jumper
+    finally:
+        jumper.close()
