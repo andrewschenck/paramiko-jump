@@ -1,12 +1,17 @@
 """
 
-A simple recipe for an easy approach to using paramiko to SSH
-through a "Jump Host", with support for keyboard-interactive
-multi-factor-authentication.
+Objects provided by this module:
+
+    :class:`SSHJumpClient`
+    :class:`DummyAuthHandler`
+    :func:`jump_host`
+    :func:`simple_auth_handler`
 
 """
 
+from contextlib import contextmanager
 from getpass import getpass
+
 from typing import (
     AnyStr,
     Callable,
@@ -20,40 +25,8 @@ from typing import (
 from paramiko.client import SSH_PORT, SSHClient
 
 
-Host = Union[AnyStr, Tuple[AnyStr, int]]
-Prompt = Tuple[AnyStr, bool]
-
-
-def simple_auth_handler(
-        title: AnyStr,
-        instructions: AnyStr,
-        prompt_list: Sequence[Prompt],
-) -> List[AnyStr]:
-    """
-    Authentication callback, for keyboard-interactive
-    authentication.
-
-    :param title:
-        Displayed to the end user before anything else.
-    :param instructions:
-        Displayed to the end user. Typically contains text explaining
-        the authentication scheme and / or legal disclaimers.
-    :param prompt_list:
-        A Sequence of (AnyStr, bool). Each string element is
-        displayed as an end-user input prompt. The corresponding
-        boolean element indicates whether the user input should
-        be 'echoed' back to the terminal during the interaction.
-    """
-    answers = []
-    if title:
-        print(title)
-    if instructions:
-        print(instructions)
-
-    for prompt, show_input in prompt_list:
-        input_ = input if show_input else getpass
-        answers.append(input_(prompt))
-    return answers
+_Host = Union[AnyStr, Tuple[AnyStr, int]]
+_Prompt = Tuple[AnyStr, bool]
 
 
 class SSHJumpClient(SSHClient):
@@ -71,9 +44,7 @@ class SSHJumpClient(SSHClient):
         """
         :param jump_session:
             If provided, proxy SSH connections through the another
-            instance of SSHClient. The underlying Transport object
-            will be used to initiate a 'direct-tcpip' mode tunneling
-            session.
+            instance of SSHClient.
         :param auth_handler:
             If provided, keyboard-interactive authentication will be
             implemented, using this handler as the callback. If this
@@ -186,3 +157,122 @@ class SSHJumpClient(SSHClient):
             passphrase=passphrase,
             disabled_algorithms=disabled_algorithms,
         )
+
+
+class DummyAuthHandler:
+    """Stateful auth handler for paramiko that will return a list of
+     auth parameters for every CLI prompt
+
+    Example
+    -------
+        >>> from paramiko_jump import DummyAuthHandler
+        >>> handler = DummyAuthHandler(['password'], ['1'])
+        >>> handler()
+        ['password']
+        >>> handler()
+        ['1']
+
+    """
+
+    def __init__(self, *items):
+        self._iterator = iter(items)
+
+    def __call__(self, *args, **kwargs):
+        try:
+            return next(self)
+        except StopIteration:
+            return []
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return next(self._iterator)
+
+
+@contextmanager
+def jump_host(
+        hostname: AnyStr,
+        username: AnyStr,
+        password: AnyStr,
+        auth_handler=None,
+        look_for_keys=True,
+):
+    """
+
+    Example
+    -------
+    >>> from paramiko_jump import SSHJumpClient, simple_auth_handler
+    >>> with jump_host(
+    >>>         hostname='jump-host',
+    >>>         username='username') as jump:
+    >>>     target = SSHJumpClient(jump_session=jumper)
+    >>>     target.connect(hostname='target-host', username='target-user')
+    >>>     _, stdout, _ = target.exec_command('sh ver')
+    >>>     print(stdout.read().decode())
+    >>>     target.close()
+
+
+    :param hostname:
+        The hostname of the jump host.
+    :param username:
+        The username used to authenticate with the jump host.
+    :param password:
+        Password used to authenticate with the jump host.
+    :param auth_handler:
+        If provided, keyboard-interactive authentication will be
+        implemented, using this handler as the callback. If this
+        is set to None, use Paramiko's default authentication
+        algorithm instead of forcing keyboard-interactive
+        authentication.
+    :param look_for_keys:
+        Gives Paramiko permission to look around in our ~/.ssh
+        folder to discover SSH keys on its own (Default False)
+    :return:
+        Connected SSHJumpClient
+    """
+    jumper = SSHJumpClient(auth_handler=auth_handler)
+    try:
+
+        jumper.connect(
+            hostname=hostname,
+            username=username,
+            password=password,
+            look_for_keys=look_for_keys,
+            allow_agent=False,
+        )
+        yield jumper
+    finally:
+        jumper.close()
+
+
+def simple_auth_handler(
+        title: AnyStr,
+        instructions: AnyStr,
+        prompt_list: Sequence[_Prompt],
+) -> List[AnyStr]:
+    """
+    Authentication callback, for keyboard-interactive
+    authentication.
+
+    :param title:
+        Displayed to the end user before anything else.
+    :param instructions:
+        Displayed to the end user. Typically contains text explaining
+        the authentication scheme and / or legal disclaimers.
+    :param prompt_list:
+        A Sequence of (AnyStr, bool). Each string element is
+        displayed as an end-user input prompt. The corresponding
+        boolean element indicates whether the user input should
+        be 'echoed' back to the terminal during the interaction.
+    """
+    answers = []
+    if title:
+        print(title)
+    if instructions:
+        print(instructions)
+
+    for prompt, show_input in prompt_list:
+        input_ = input if show_input else getpass
+        answers.append(input_(prompt))
+    return answers
