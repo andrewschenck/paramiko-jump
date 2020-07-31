@@ -10,28 +10,19 @@ The Solution
 ------------
 A simple class, ``SSHJumpClient``, which derives from ``paramiko.SSHClient`` and implements two additional features:
 
-1) Easy chaining of SSH connections, supported through object injection. This enables the programmer to build a 'stack' of proxied SSH sessions, and tunnel commands through Jump Host infrastructure as-needed.
+1) Easy chaining of SSH connections, supported through object injection. This enables the programmer to build a 'stack' of proxied SSH sessions, and tunnel commands through infrastructure as-needed.
 
-2) Easy authentication scheme override, forcing a keyboard-interactive authentication approach to be used. This should support most 2FA / MFA infrastructure approaches to SSH authentication.
+2) Easy authentication scheme override, forcing a keyboard-interactive authentication approach to be used. This should support most 2FA / MFA infrastructure approaches to SSH authentication. The keyboard-interactive authentication handler is injected, permitting easy integration with more advanced use cases.
 
 
 Usage Example 1: Connect to a single target through a Jump Host
 ---------------------------------------------------------------
-
-In this example, we disable SSH key-based authentication
-between the Jump Host and the Target Host.
+In this example, we use keyboard-interactive authentication on the Jump Host, and we tell Paramiko to 'auto add' (and accept) unknown Host Keys. (What could possibly go wrong?)
 
 .. code-block::
 
     import paramiko
     from paramiko_jump import SSHJumpClient, simple_auth_handler
-
-    jump_host = 'network-tools'
-    target_host = 'some-switch-gw1'
-
-    jump_user = input(f'{jump_host} Username: ')
-    username = input(f'{target_host1} Username: ')
-    password = getpass(f'{target_host1} Password: ')
 
     # My Jump Host requires keyboard-interactive multi-factor
     # authentication, so I use auth_handler=. Otherwise, I could
@@ -39,8 +30,8 @@ between the Jump Host and the Target Host.
     with SSHJumpClient(auth_handler=simple_auth_handler) as jumper:
         jumper.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         jumper.connect(
-            hostname=jump_host,
-            username=jump_user,
+            hostname='jump-host',
+            username='jump-user',
         )
 
         # Now I instantiate a session for the Jump Host <-> Target
@@ -49,9 +40,9 @@ between the Jump Host and the Target Host.
         target = SSHJumpClient(jump_session=jumper)
         target.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         target.connect(
-            hostname=target_host,
-            username=username,
-            password=password,
+            hostname='target-host',
+            username='target-user',
+            password='target-password',
             look_for_keys=False,
             allow_agent=False,
         )
@@ -60,10 +51,8 @@ between the Jump Host and the Target Host.
         target.close()
 
 
-Usage Example 2a: Open one Jump Channel, connect to multiple targets
+Usage Example 2: Open one Jump Channel, connect to multiple targets
 --------------------------------------------------------------------
-
-In this example, we allow Paramiko to authenticate using its normal algorithm; if we have an SSH key on the Jump Host, Paramiko will use it to authenticate our session between the Jump Host and the Target Hosts.
 
 .. code-block::
 
@@ -72,29 +61,17 @@ In this example, we allow Paramiko to authenticate using its normal algorithm; i
     import paramiko
     from paramiko_jump import SSHJumpClient, simple_auth_handler
 
-    jump_host = 'network-tools'
-    target_host1 = 'some-host-1'
-    target_host2 = 'some-host-2'
-
-    jump_user = input(f'{jump_host} Username: ')
-    username1 = input(f'{target_host1} Username: ')
-    password1 = getpass(f'{target_host1} Password: ')
-    username2 = input(f'{target_host2} Username: ')
-    password2 = getpass(f'{target_host2} Password: ')
-
     with SSHJumpClient(auth_handler=simple_auth_handler) as jumper:
-        jumper.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         jumper.connect(
-            hostname=jump_host,
-            username=jump_user,
+            hostname='jump-host',
+            username='jump-user',
         )
 
         target1 = SSHJumpClient(jump_session=jumper)
-        target1.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         target1.connect(
-            hostname=target_host1,
-            username=username1,
-            password=password1,
+            hostname='target-host1',
+            username='username',
+            password='password',
             look_for_keys=False,
             allow_agent=False,
         )
@@ -103,11 +80,10 @@ In this example, we allow Paramiko to authenticate using its normal algorithm; i
         target1.close()
 
         target2 = SSHJumpClient(jump_session=jumper)
-        target2.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         target2.connect(
-            hostname=target_host1,
-            username=username2,
-            password=password2,
+            hostname='target-host2',
+            username='username',
+            password='password',
             look_for_keys=False,
             allow_agent=False,
         )
@@ -116,53 +92,44 @@ In this example, we allow Paramiko to authenticate using its normal algorithm; i
         target2.close()
 
 
-Usage Example 2b: Same as 2a, no context manager (Just for fun)
----------------------------------------------------------------
+Usage Example 3: Multiple-Hop SSH "Virtual Circuit"
+---------------------------------------------------
 
 .. code-block::
 
-    jumper = SSHJumpClient(auth_handler=simple_auth_handler)
-    jumper.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    jumper.connect(
-        hostname=jump_host,
-        username=jump_user,
-    )
+    circuit = []
 
-    target1 = SSHJumpClient(jump_session=jumper)
-    target1.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    target1.connect(
-        hostname=target_host1,
-        username=username1,
-        password=password1,
-        look_for_keys=False,
-        allow_agent=False,
-    )
-    _, stdout, _ = target1.exec_command('sh ver')
-    print(stdout.read().decode())
-    target1.close()
+    hop1 = SSHJumpClient()
+    hop1.connect('host')
+    circuit.append(hop1)
 
-    target2 = SSHJumpClient(jump_session=jumper)
-    target2.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    target2.connect(
-        hostname=target_host2,
-        username=username2,
-        password=password2,
-        look_for_keys=False,
-        allow_agent=False,
-    )
-    _, stdout, _ = target2.exec_command('sh ip int br')
-    print(stdout.read().decode())
-    target2.close()
+    hop2 = SSHJumpClient(jump_session=hop1)
+    hop2.connect('host')
+    circuit.append(hop2)
 
-    jumper.close()
+    hop3 = SSHJumpClient(jump_session=hop2)
+    hop3.connect('host')
+    circuit.append(hop3)
+
+    hop4 = SSHJumpClient(jump_session=hop3)
+    hop4.connect('host')
+    circuit.append(hop4)
+
+    target = SSHJumpClient(jump_session=hop4)
+    target.connect('host')
+    circuit.append(target)
+
+    target.exec_command('uptime')
+
+    for session in reversed(circuit):
+        session.close()
 
 
 A Note on Authentication
 ------------------------
 
-You must think about how you're authenticating from the Client to the Jump Host, as well as from the Jump Host to the Target Host. When connecting to the Target Host, be sure to pass authentication-related parameters into the connect() call. If you have an SSH key on the Jump Host, Paramiko will try to use it for authentication unless you override its behavior.
-
-In order to successfully authenticate with infrastructure requiring keyboard-interactive multi-factor authentication, you will probably need to explicitly pass in auth_handler= during client construction. A basic handler callable is included, and should work for most use cases:
+In order to successfully authenticate with infrastructure requiring keyboard-interactive multi-factor authentication, you will probably want to explicitly pass in auth_handler= during client construction. A basic handler callable is included, and should work for most use cases:
 
 ``from paramiko_jump import simple_auth_handler``
 
+When troubleshooting authentication failures, remember that Paramiko will be authenticating as a client on each 'hop', and that it has strong preferences over which authentication scheme it will be using. You can control authentication behavior by passing various parameters to the ```connect()``` call. Read ```paramiko.SSHClient._auth``` for more insight into how this works.
