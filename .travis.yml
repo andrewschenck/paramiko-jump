@@ -8,7 +8,7 @@ python:
   - 3.9-dev
   - nightly
 install:
-  - pip install pytest pylint pycodestyle wheel
+  - pip install paramiko pytest pylint pycodestyle wheel
 before_script:
   - export PYTHONPATH=.:${PYTHONPATH}
 script:
