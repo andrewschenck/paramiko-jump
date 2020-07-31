@@ -5,15 +5,15 @@ python:
   - 3.7
   - 3.8
   - 3.8-dev
-  - 3.9-dev
-  - nightly
+#  - 3.9-dev
+#  - nightly
 install:
-  - true
-#  - pip install -r test-requirements.txt
+  - pip install paramiko pytest pylint pycodestyle wheel
 before_script:
   - export PYTHONPATH=.:${PYTHONPATH}
 script:
-  - true
+  - pylint paramiko_jump
+  - pycodestyle paramiko_jump
 #  - pytest --cov-report term --cov=paramiko_jump
 deploy:
   provider: pypi
