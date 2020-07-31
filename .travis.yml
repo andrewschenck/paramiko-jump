@@ -8,12 +8,12 @@ python:
   - 3.9-dev
   - nightly
 install:
-  - true
-#  - pip install -r test-requirements.txt
+  - pip install pytest pylint pycodestyle wheel
 before_script:
   - export PYTHONPATH=.:${PYTHONPATH}
 script:
-  - true
+  - pylint paramiko_jump
+  - pycodestyle paramiko_jump
 #  - pytest --cov-report term --cov=paramiko_jump
 deploy:
   provider: pypi
