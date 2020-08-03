@@ -22,6 +22,7 @@ from typing import (
     Union,
 )
 
+from paramiko import AutoAddPolicy
 from paramiko.client import SSH_PORT, SSHClient
 
 
@@ -192,11 +193,12 @@ class DummyAuthHandler:
 
 @contextmanager
 def jump_host(
-        hostname: AnyStr,
-        username: AnyStr,
-        password: AnyStr,
-        auth_handler=None,
-        look_for_keys=True,
+    hostname: AnyStr,
+    username: AnyStr,
+    password: AnyStr,
+    auth_handler=None,
+    look_for_keys=True,
+    auto_add_missing_key_policy=False,
 ):
     """
 
@@ -228,10 +230,15 @@ def jump_host(
     :param look_for_keys:
         Gives Paramiko permission to look around in our ~/.ssh
         folder to discover SSH keys on its own (Default False)
+    :param auto_add_missing_key_policy:
+        If set to True, setting the missing host key policy on the jump is set
+        to auto add policy. (Default False)
     :return:
         Connected SSHJumpClient
     """
     jumper = SSHJumpClient(auth_handler=auth_handler)
+    if auto_add_missing_key_policy:
+        jumper.set_missing_host_key_policy(AutoAddPolicy())
     try:
 
         jumper.connect(
