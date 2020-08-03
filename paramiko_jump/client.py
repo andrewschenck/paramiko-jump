@@ -193,12 +193,12 @@ class DummyAuthHandler:
 
 @contextmanager
 def jump_host(
-    hostname: AnyStr,
-    username: AnyStr,
-    password: AnyStr,
-    auth_handler=None,
-    look_for_keys=True,
-    auto_add_missing_key_policy=False,
+        hostname: AnyStr,
+        username: AnyStr,
+        password: AnyStr,
+        auth_handler=None,
+        look_for_keys=True,
+        auto_add_missing_key_policy=False,
 ):
     """
 
