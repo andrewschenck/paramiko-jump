@@ -134,6 +134,7 @@ class SSHJumpClient(SSHClient):
                 kind='direct-tcpip',
                 dest_addr=(hostname, port),
                 src_addr=transport.getpeername(),
+                timeout=timeout,
             )
 
         return super().connect(
