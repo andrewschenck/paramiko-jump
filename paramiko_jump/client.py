@@ -23,7 +23,8 @@ from typing import (
 )
 
 from paramiko import AutoAddPolicy
-from paramiko.client import SSH_PORT, SSHClient
+from paramiko.client import SSHClient
+from paramiko.config import SSH_PORT
 
 
 _Host = Union[AnyStr, Tuple[AnyStr, int]]
