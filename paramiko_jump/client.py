@@ -12,6 +12,8 @@ Objects provided by this module:
 from contextlib import contextmanager
 from getpass import getpass
 
+from socket import socket
+
 from typing import (
     AnyStr,
     Callable,
@@ -20,9 +22,12 @@ from typing import (
     Sequence,
     Tuple,
     Union,
+    Any,
+    Dict,
+    Iterator,
 )
 
-from paramiko import AutoAddPolicy
+from paramiko import AutoAddPolicy, PKey
 from paramiko.client import SSHClient
 from paramiko.config import SSH_PORT
 
@@ -42,8 +47,11 @@ class SSHJumpClient(SSHClient):
             *,
             jump_session: Optional[SSHClient] = None,
             auth_handler: Optional[Callable] = None,
-    ):
+    ) -> None:
         """
+        SSHJumpClient constructor, which is a subclass of
+        paramiko.client.SSHClient.
+        
         :param jump_session:
             If provided, proxy SSH connections through the another
             instance of SSHClient.
@@ -55,41 +63,78 @@ class SSHJumpClient(SSHClient):
             authentication.
         """
         super().__init__()
-
-        j = self._jump_session = jump_session
+        self._jump_session: Optional[SSHClient] = jump_session
+        j: Optional[SSHClient] = self._jump_session
         if j is not None and not hasattr(j, '_transport'):
             raise TypeError(f'bad jump_session: {j}')
-        self._auth_handler = auth_handler
+        self._auth_handler: Optional[Callable[..., Any]] = auth_handler
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """Return repr(self).
+
+        :return: The class name and the jump session and auth handler.
+        """
         return (f'{self.__class__.__name__}('
                 f'jump_session={self._jump_session!r}, '
                 f'auth_handler={self._auth_handler!r})')
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """String representation of the object.
+
+        :return: The class name.
+        """
         return self.__class__.__name__
 
     def _auth(
             self,
-            username,
-            password,
-            pkey,
-            key_filenames,
-            allow_agent,
-            look_for_keys,
-            gss_auth,
-            gss_kex,
-            gss_deleg_creds,
-            gss_host,
-            passphrase,
-    ):  # pylint: disable=R0913
+            username: AnyStr,
+            password: Optional[AnyStr] = None,
+            pkey: Optional[PKey] = None,
+            key_filenames: Optional[AnyStr] = None,
+            allow_agent: bool = True,
+            look_for_keys: bool = True,
+            gss_auth: bool = False,
+            gss_kex: bool = False,
+            gss_deleg_creds: bool = True,
+            gss_host: Optional[AnyStr] = None,
+            passphrase: Optional[AnyStr] = None,
+    ) -> None:  # pylint: disable=R0913
+        """
+        Authenticate to the server.
+        
+        :param username: 
+            Username to authenticate with.
+        :param password: 
+            Password to authenticate with, defaults to None
+        :param pkey:
+            Private key file to use for authentication, defaults to None
+        :param key_filenames:
+            Private key filenames to use for authentication, defaults to None
+        :param allow_agent:
+            Allow local SSH Agent to provide private key files, defaults to True
+        :param look_for_keys:
+            Look for keys in default locations, defaults to True
+        :param gss_auth:
+            Allow GSS-API authentication, defaults to False
+        :param gss_kex:
+            Allow GSS-API key exchange, defaults to False
+        :param gss_deleg_creds:
+            Delegate GSS-API credentials from client to server, defaults to True
+        :param gss_host:
+            Hostname to use in GSS-API authentication, defaults to None
+        :param passphrase:
+            Passphrase to use for private key, defaults to None
+        :return: None
+        """
         if callable(self._auth_handler):
-            return self._transport.auth_interactive(
+            # Ignore type issues here, as the super class does
+            # not share _transport information (which is private)
+            return self._transport.auth_interactive( # type: ignore
                 username=username,
                 handler=self._auth_handler,
             )
 
-        return super()._auth(
+        return super()._auth( # type: ignore
             username=username,
             password=password,
             pkey=pkey,
@@ -105,32 +150,80 @@ class SSHJumpClient(SSHClient):
 
     def connect(
             self,
-            hostname,
-            port=SSH_PORT,
-            username=None,
-            password=None,
-            pkey=None,
-            key_filename=None,
-            timeout=None,
-            allow_agent=True,
-            look_for_keys=True,
-            compress=False,
-            sock=None,
-            gss_auth=False,
-            gss_kex=False,
-            gss_deleg_creds=True,
-            gss_host=None,
-            banner_timeout=None,
-            auth_timeout=None,
-            gss_trust_dns=True,
-            passphrase=None,
-            disabled_algorithms=None,
-    ):  # pylint: disable=R0913,R0914
+            hostname: AnyStr,
+            port: int = SSH_PORT,
+            username: Optional[AnyStr] = None,
+            password: Optional[AnyStr] = None,
+            pkey: Optional[PKey] = None,
+            key_filename: Optional[AnyStr] = None,
+            timeout: Optional[int] = None,
+            allow_agent: bool = True,
+            look_for_keys: bool = True,
+            compress: bool = False,
+            sock: Optional[socket] = None,
+            gss_auth: bool = False,
+            gss_kex: bool = False,
+            gss_deleg_creds: bool = True,
+            gss_host: Optional[str] = None,
+            banner_timeout: Optional[int] = None,
+            auth_timeout: Optional[int] = None,
+            gss_trust_dns: bool = True,
+            passphrase: Optional[AnyStr] = None,
+            disabled_algorithms: Optional[Dict[AnyStr, List[AnyStr]]] = None,
+    ) -> None:  # pylint: disable=R0913,R0914
+        """
+        Connect to an SSH server and authenticate to it.
+
+        :param hostname: 
+            Hostname or IP address of the remote host.
+        :param port:
+            Port number of the remote host, defaults to SSH_PORT (22)
+        :param username:
+            Username to authenticate as, defaults to None
+        :param password:
+            Password to authenticate with, defaults to None
+        :param pkey:
+            PKey object for private key, defaults to None
+        :param key_filename:
+            Filename of the private key file, defaults to None
+        :param timeout:
+            Timeout for the TCP connect, defaults to None
+        :param allow_agent:
+            Set to False to disable connecting to the SSH agent, defaults to True
+        :param look_for_keys:
+            Set to False to disable searching for discoverable private key files, defaults to True
+        :param compress:
+            Set to True to turn on compression, defaults to False
+        :param sock:
+            Existing socket to use for connection, defaults to None
+        :param gss_auth:
+            Set to True to allow GSS-API authentication, defaults to False
+        :param gss_kex:
+            Set to True to allow GSS-API key exchange, defaults to False
+        :param gss_deleg_creds:
+            Set to True to delegate GSS-API credentials from client to server, defaults to True
+        :param gss_host:
+            Hostname to use in GSS-API authentication, defaults to None
+        :param banner_timeout:
+            Timeout for the banner message, defaults to None
+        :param auth_timeout:
+            Timeout for authentication, defaults to None
+        :param gss_trust_dns:
+            Set to False to disable DNS lookups for GSS-API, defaults to True
+        :param passphrase:
+            Passphrase to use for private key, defaults to None
+        :param disabled_algorithms:
+            A dictionary of disabled algorithms, defaults to None
+        :raises ValueError:
+            If jump_session and sock are both provided as arguments; 
+            they are mutually exclusive
+        :return: None
+        """
         if self._jump_session is not None:
             if sock is not None:
                 raise ValueError('jump_session= and sock= are mutually '
                                  'exclusive')
-            transport = self._jump_session._transport  # pylint: disable=W0212
+            transport = self._jump_session._transport  # pylint: disable=W0212 # type: ignore
             sock = transport.open_channel(
                 kind='direct-tcpip',
                 dest_addr=(hostname, port),
@@ -198,10 +291,10 @@ def jump_host(
         hostname: AnyStr,
         username: AnyStr,
         password: AnyStr,
-        auth_handler=None,
-        look_for_keys=True,
-        auto_add_missing_key_policy=False,
-):  # pylint: disable=R0913
+        auth_handler: Optional[Callable[..., Any]] = None,
+        look_for_keys: bool = True,
+        auto_add_missing_key_policy: bool = False,
+) -> Iterator:  # pylint: disable=R0913
     """
 
     Example
@@ -236,7 +329,7 @@ def jump_host(
         If set to True, setting the missing host key policy on the jump is set
         to auto add policy. (Default False)
     :return:
-        Connected SSHJumpClient
+        Connected SSHJumpClient instance context.
     """
     jumper = SSHJumpClient(auth_handler=auth_handler)
     if auto_add_missing_key_policy:
@@ -274,6 +367,9 @@ def simple_auth_handler(
         displayed as an end-user input prompt. The corresponding
         boolean element indicates whether the user input should
         be 'echoed' back to the terminal during the interaction.
+    :return:
+        A list of user input, in the order that the prompts were
+        presented.
     """
     answers = []
     if title:
@@ -283,5 +379,5 @@ def simple_auth_handler(
 
     for prompt, show_input in prompt_list:
         input_ = input if show_input else getpass
-        answers.append(input_(prompt))
+        answers.append(input_(prompt)) # type: ignore
     return answers

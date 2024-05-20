@@ -19,7 +19,7 @@ Usage Example 1: Connect to a single target through a Jump Host
 ---------------------------------------------------------------
 In this example, we use keyboard-interactive authentication on the Jump Host, and we tell Paramiko to 'auto add' (and accept) unknown Host Keys. (What could possibly go wrong?)
 
-.. code-block::
+.. code-block:: python
 
     import paramiko
     from paramiko_jump import SSHJumpClient, simple_auth_handler
@@ -54,7 +54,7 @@ In this example, we use keyboard-interactive authentication on the Jump Host, an
 Usage Example 2: Open one Jump Channel, connect to multiple targets
 --------------------------------------------------------------------
 
-.. code-block::
+.. code-block:: python
 
     from getpass import getpass
 
@@ -95,7 +95,7 @@ Usage Example 2: Open one Jump Channel, connect to multiple targets
 Usage Example 3: Multiple-Hop SSH "Virtual Circuit"
 ---------------------------------------------------
 
-.. code-block::
+.. code-block:: python
 
     circuit = []
 
