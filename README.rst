@@ -133,28 +133,3 @@ In order to successfully authenticate with infrastructure requiring keyboard-int
 ``from paramiko_jump import simple_auth_handler``
 
 When troubleshooting authentication failures, remember that Paramiko will be authenticating as a client on each 'hop', and that it has strong preferences over which authentication scheme it will be using. You can control authentication behavior by passing various parameters to the ```connect()``` call. Read ```paramiko.SSHClient._auth``` for more insight into how this works.
-
-A Note on Fabric
-----------------
-
-If using with ``fabric``, the best means to do this is to create a ``fabric.connection.Connection`` object, and then replace the ``Connection.client`` with an instance of ``SSHJumpClient`` targeting the ``Connection.host``.
-
-.. code-block:: python
-
-    from fabric.connection import Connection
-    from paramiko_jump import SSHJumpClient, simple_auth_handler
-
-    # Create Fabric Connection
-    conn: Connection = Connection("hostname_target")
-    
-    # Create SSHJumpClient for the target jumphost
-    jumphost_client: SSHJumpClient = SSHJumpClient(auth_handler=simple_auth_handler)
-    jumphost_client.connect("jumphost_target")
-
-    # Create SSHJumpClient to replace internal SSHClient representation in Fabric
-    new_client: SSHJumpClient = SSHJumpClient(jump_session=jumphost_client, auth_handler=simple_auth_handler)
-    new_client.connect(conn.host)
-
-    # Add the client to the conn.client
-    conn.client = new_client
-
