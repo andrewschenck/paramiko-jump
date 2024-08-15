@@ -26,8 +26,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pylint pycodestyle mypy pytest pytest-cov coverage paramiko
-          mypy --install-types
+          pip install pylint pycodestyle mypy pytest pytest-cov coverage paramiko types-paramiko
 
       - name: Run pylint
         run: pylint paramiko_jump
