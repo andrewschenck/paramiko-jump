@@ -31,7 +31,9 @@ tokens.
 
 
 ## Installing paramiko-jump
-    pip install paramiko_jump
+Paramiko-jump is now available on PyPI, so you can readily install it with pip:
+
+    pip install paramiko-jump
 
 
 
