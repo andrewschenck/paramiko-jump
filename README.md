@@ -33,8 +33,7 @@ tokens.
 ## Installing paramiko-jump
 Paramiko-jump is now available on PyPI, so you can readily install it with pip:
 
-    pip install paramiko-jump
-
+    ```pip install paramiko-jump```
 
 
 
@@ -57,35 +56,38 @@ We are using keyboard-interactive authentication on the Jump Host by way of
 credentials to the Target Host.
 
 
-    from paramiko_jump import SSHJumpClient, simple_auth_handler
+```python
+from paramiko_jump import SSHJumpClient, simple_auth_handler
+
+
+##
+# This Jump Host requires keyboard-interactive multi-factor
+# authentication, so I use auth_handler=. Otherwise, I could
+# use paramiko.SSHClient here.
+##
+with SSHJumpClient(auth_handler=simple_auth_handler) as jumper:
+    jumper.connect(
+        hostname='jump-host',
+        username='jump-user',
+    )
 
     ##
-    # This Jump Host requires keyboard-interactive multi-factor
-    # authentication, so I use auth_handler=. Otherwise, I could
-    # use paramiko.SSHClient here.
+    # Now I instantiate a session for the Jump Host <-> Target
+    # Host connection, and inject the jump_session to use for
+    # proxying.
     ##
-    with SSHJumpClient(auth_handler=simple_auth_handler) as jumper:
-        jumper.connect(
-            hostname='jump-host',
-            username='jump-user',
+    with SSHJumpClient(jump_session=jumper) as target:
+        target.connect(
+            hostname='target-host',
+            username='target-user',
+            password='target-password',
+            look_for_keys=False,
+            allow_agent=False,
         )
-
-        ##
-        # Now I instantiate a session for the Jump Host <-> Target
-        # Host connection, and inject the jump_session to use for
-        # proxying.
-        ##
-        with SSHJumpClient(jump_session=jumper) as target:
-            target.connect(
-                hostname='target-host',
-                username='target-user',
-                password='target-password',
-                look_for_keys=False,
-                allow_agent=False,
-            )
-            stdin, stdout, stderr = target.exec_command('sh ip int br')
-            output = stdout.readlines()
-            print(output)
+        stdin, stdout, stderr = target.exec_command('sh ip int br')
+        output = stdout.readlines()
+        print(output)
+```
 
 
 ### SSH Proxying Usage Example 1b: Connect to a single target through a Jump Host
@@ -98,72 +100,72 @@ Target Host connections -- this tells the SSH processes to 'auto accept' the hos
 already known (be cautious!)
 
 
-    import paramiko
-    from paramiko_jump import SSHJumpClient, simple_auth_handler
+```python
+import paramiko
+from paramiko_jump import SSHJumpClient, simple_auth_handler
 
-    jumper = SSHJumpClient(auth_handler=simple_auth_handler)
-    jumper.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    jumper.connect(
-        hostname='jump-host',
-        username='jump-user',
-    )
 
-    # Now I instantiate a session for the Jump Host <-> Target
-    # Host connection, and inject the jump_session to use for
-    # proxying.
-    target = SSHJumpClient(jump_session=jumper)
-    target.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    target.connect(
-        hostname='target-host',
-        username='target-user',
-        password='target-password',
-        look_for_keys=False,
-        allow_agent=False,
-    )
-    stdin, stdout, stderr = target.exec_command('sh ip int br')
-    output = stdout.readlines()
-    print(output)
-    target.close()
+jumper = SSHJumpClient(auth_handler=simple_auth_handler)
+jumper.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+jumper.connect(
+    hostname='jump-host',
+    username='jump-user',
+)
+
+target = SSHJumpClient(jump_session=jumper)
+target.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+target.connect(
+    hostname='target-host',
+    username='target-user',
+    password='target-password',
+    look_for_keys=False,
+    allow_agent=False,
+)
+stdin, stdout, stderr = target.exec_command('sh ip int br')
+output = stdout.readlines()
+print(output)
+target.close()
+```
 
 
 ### SSH Proxying Example 2: Open one Jump Channel, connect to multiple targets
 
 
-    from getpass import getpass
+```python
+from paramiko_jump import SSHJumpClient, simple_auth_handler
 
-    import paramiko
-    from paramiko_jump import SSHJumpClient, simple_auth_handler
 
-    with SSHJumpClient(auth_handler=simple_auth_handler) as jumper:
-        jumper.connect(
-            hostname='jump-host',
-            username='jump-user',
-        )
+with SSHJumpClient(auth_handler=simple_auth_handler) as jumper:
+    jumper.connect(
+        hostname='jump-host',
+        username='jump-user',
+    )
 
-        target1 = SSHJumpClient(jump_session=jumper)
-        target1.connect(
-            hostname='target-host1',
-            username='username',
-            password='password',
-            look_for_keys=False,
-            allow_agent=False,
-        )
-        stdin, stdout, stderr = target1.exec_command('sh ver')
-        print(stdout.read().decode())
-        target1.close()
+    target1 = SSHJumpClient(jump_session=jumper)
+    target1.connect(
+        hostname='target-host1',
+        username='username',
+        password='password',
+        look_for_keys=False,
+        allow_agent=False,
+    )
+    stdin, stdout, stderr = target1.exec_command('sh ver')
+    print(stdout.read().decode())
+    target1.close()
 
-        target2 = SSHJumpClient(jump_session=jumper)
-        target2.connect(
-            hostname='target-host2',
-            username='username',
-            password='password',
-            look_for_keys=False,
-            allow_agent=False,
-        )
-        _, stdout, _ = target2.exec_command('sh ip int br')
-        output = stdout.readlines()
-        print(output)
-        target2.close()
+    target2 = SSHJumpClient(jump_session=jumper)
+    target2.connect(
+        hostname='target-host2',
+        username='username',
+        password='password',
+        look_for_keys=False,
+        allow_agent=False,
+    )
+    _, stdout, _ = target2.exec_command('sh ip int br')
+    output = stdout.readlines()
+    print(output)
+    target2.close()
+```
 
 
 ### SSH Proxying Example 3: Multiple-Hop SSH "Virtual Circuit"
@@ -171,34 +173,37 @@ already known (be cautious!)
 You can build a 'virtual circuit' out of multiple SSH connections, each one proxying through 
 the previous.
 
-    from paramiko_jump import SSHJumpClient
+```python
+from paramiko_jump import SSHJumpClient
 
-    circuit = []
 
-    hop1 = SSHJumpClient()
-    hop1.connect('host1')
-    circuit.append(hop1)
+circuit = []
 
-    hop2 = SSHJumpClient(jump_session=hop1)
-    hop2.connect('host2')
-    circuit.append(hop2)
+hop1 = SSHJumpClient()
+hop1.connect('host1')
+circuit.append(hop1)
 
-    hop3 = SSHJumpClient(jump_session=hop2)
-    hop3.connect('host3')
-    circuit.append(hop3)
+hop2 = SSHJumpClient(jump_session=hop1)
+hop2.connect('host2')
+circuit.append(hop2)
 
-    hop4 = SSHJumpClient(jump_session=hop3)
-    hop4.connect('host4')
-    circuit.append(hop4)
+hop3 = SSHJumpClient(jump_session=hop2)
+hop3.connect('host3')
+circuit.append(hop3)
 
-    target = SSHJumpClient(jump_session=hop4)
-    target.connect('target')
-    circuit.append(target)
+hop4 = SSHJumpClient(jump_session=hop3)
+hop4.connect('host4')
+circuit.append(hop4)
 
-    stdin, stdout, stderr = target.exec_command('uptime')
+target = SSHJumpClient(jump_session=hop4)
+target.connect('target')
+circuit.append(target)
 
-    for session in reversed(circuit):
-        session.close()
+stdin, stdout, stderr = target.exec_command('uptime')
+
+for session in reversed(circuit):
+    session.close()
+```
 
 
 
@@ -215,22 +220,23 @@ client construction.
 
  A basic handler callable is included, and should work for most keyboard-interactive use cases:
 
-    ##
-    # Keyboard-Interactive Authentication using simple_auth_handler
-    ##
+```python
+##
+# Keyboard-Interactive Authentication using simple_auth_handler
+##
 
-    from paramiko_jump import SSHJumpClient, simple_auth_handler
+from paramiko_jump import SSHJumpClient, simple_auth_handler
 
-    with SSHJumpClient(auth_handler=simple_auth_handler) as jumper:
-        jumper.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        jumper.connect(
-            hostname='somehost.example.com',
-            username='username',
-            look_for_keys=False,
-        )
-    stdin, stdout, stderr = jumper.exec_command('uptime')
-    output = stdout.readlines()
-    print(output)
+with SSHJumpClient(auth_handler=simple_auth_handler) as jumper:
+    jumper.connect(
+        hostname='somehost.example.com',
+        username='username',
+        look_for_keys=False,
+    )
+stdin, stdout, stderr = jumper.exec_command('uptime')
+output = stdout.readlines()
+print(output)
+```
 
 
 ### MagicAuthHandler
@@ -240,74 +246,75 @@ authentication sessions with automation -- even through MFA infrastructure. This
 feeding the handler a sequence of responses which will be required during the authentication 
 session, such as a password and OTP. Each item in the sequence should be a Python list.
 
-    ##
-    # Multi-Factor Authentication using the MagicAuthHandler
-    ##
+```python
+##
+# Multi-Factor Authentication using the MagicAuthHandler
+##
 
-    from paramiko_jump import SSHJumpClient, MagicAuthHandler
+from paramiko_jump import SSHJumpClient, MagicAuthHandler
 
-    handler = MagicAuthHandler(['password'], ['1'])
+handler = MagicAuthHandler(['password'], ['1'])
+# First call to handler will return ['password']
+# Second call to handler will return ['1']
 
-
-    # First call to handler will return ['password']
-    # Second call to handler will return ['1']
-
-    with SSHJumpClient(auth_handler=handler) as jumper:
-        jumper.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        jumper.connect(
-            hostname='somehost.example.com',
-            username='username',
-            look_for_keys=False,
-        )
-        stdin, stdout, stderr = jumper.exec_command('uptime')
-        output = stdout.readlines()
-        print(output)
+with SSHJumpClient(auth_handler=handler) as jumper:
+    jumper.connect(
+        hostname='somehost.example.com',
+        username='username',
+        look_for_keys=False,
+    )
+    stdin, stdout, stderr = jumper.exec_command('uptime')
+    output = stdout.readlines()
+    print(output)
+```
 
 
 ### Password-Only Authentication
 
 ### SSH Key-Based Authentication
 
-    ##
-    # SSH key-based authentication
-    ##
+```python
+##
+# If I have an SSH key, I can use it to authenticate instead of using keyboard-interactive
+# authentication.
+#
+# In this example, my private key is managed by ssh-agent, but you can add a passphrase=
+# parameter to the connect() call if you have a passphrase-protected key and aren't using
+# ssh-agent.
+##
 
-    # If I have an SSH key, I can use it to authenticate instead of using keyboard-interactive
-    # authentication.
-    #
-    # In this example, my private key is managed by ssh-agent, but you can add a passphrase=
-    # parameter to the connect() call if you have a passphrase-protected key and aren't using
-    # ssh-agent.
-
-    from paramiko_jump import SSHJumpClient
-    with SSHJumpClient() as jumper:
-        jumper.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        jumper.connect(
-            hostname='somehost.example.com',
-            username='username,
-            look_for_keys=True,
-        )
-        stdin, stdout, stderr = jumper.exec_command('uptime')
-        output = stdout.readlines()
-        print(output)
+from paramiko_jump import SSHJumpClient
+with SSHJumpClient() as jumper:
+    jumper.connect(
+        hostname='somehost.example.com',
+        username='username',
+        look_for_keys=True,
+    )
+    stdin, stdout, stderr = jumper.exec_command('uptime')
+    output = stdout.readlines()
+    print(output)
+```
 
 
 ### User/Password Authentication
-        
-    ##
-    # User/Password Authentication
-    ##
-    with SSHJumpClient() as jumper:
-        jumper.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        jumper.connect(
-            hostname='somehost.example.com',
-            username='ubuntu',
-            password='password',
-            look_for_keys=False,
-        )
-        _, stdout, _ = jumper.exec_command('ls')
-        output = stdout.readlines()
-        print(output)
+```python
+    
+##
+# User/Password Authentication
+##
+from paramiko_jump import SSHJumpClient
+with SSHJumpClient() as jumper:
+    jumper.connect(
+        hostname='somehost.example.com',
+        username='ubuntu',
+        password='password',
+        look_for_keys=False,
+    )
+    _, stdout, _ = jumper.exec_command('ls')
+    output = stdout.readlines()
+    print(output)
+```
+
 
 
 
