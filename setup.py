@@ -11,7 +11,7 @@ install_requires = ['paramiko >= 3.4.0']
 setup(
     name='paramiko-jump',
     packages=['paramiko_jump'],
-    version='0.0.1',
+    version='0.0.2',
     description='Paramiko + jump host (SSH proxy) + multi-factor '
                 'authentication simplified.',
     long_description=README,
