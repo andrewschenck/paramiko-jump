@@ -8,16 +8,11 @@ multi-factor-authentication.
 
 """
 
-from paramiko_jump.client import (
-    DummyAuthHandler,
-    SSHJumpClient,
-    jump_host,
-    simple_auth_handler,
-)
+from paramiko_jump.client import SSHJumpClient
+from paramiko_jump.handler import MagicAuthHandler, simple_auth_handler
 
 __all__ = (
-    'DummyAuthHandler',
+    'MagicAuthHandler',
     'SSHJumpClient',
-    'jump_host',
     'simple_auth_handler',
 )
