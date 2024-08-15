@@ -45,7 +45,7 @@ see the section on **Authentication Handlers**. You can use the ```simple_auth_h
 another SSH session through it ('jumping').
 
 
-### SSH Proxying Usage Example 1a: Connect to a single target through a Jump Host
+### SSH Proxying Example 1a: Connect to a single target through a Jump Host
 
 In this most basic example, we connect to a Jump Host, then connect to a Target Host through it.
 We are using keyboard-interactive authentication on the Jump Host by way of 
@@ -87,7 +87,7 @@ with SSHJumpClient(auth_handler=simple_auth_handler) as jumper:
 ```
 
 
-### SSH Proxying Usage Example 1b: Connect to a single target through a Jump Host
+### SSH Proxying Example 1b: Connect to a single target through a Jump Host
 
 This example is functionally equivalent to Example 1a, with two key changes:
 
@@ -147,7 +147,8 @@ with SSHJumpClient(auth_handler=simple_auth_handler) as jumper:
         allow_agent=False,
     )
     stdin, stdout, stderr = target1.exec_command('sh ver')
-    print(stdout.read().decode())
+    output = stdout.readlines()
+    print(output)
     target1.close()
 
     target2 = SSHJumpClient(jump_session=jumper)

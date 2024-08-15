@@ -43,6 +43,21 @@ jobs:
         run: mypy paramiko_jump
 
 
+      - name: Run tests with coverage
+        run: |
+          coverage run -m unittest discover
+          coverage report
+          coverage xml
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: true
+
+
   build:
     name: Build distribution
     runs-on: ubuntu-latest
