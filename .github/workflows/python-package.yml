@@ -1,0 +1,112 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - 'v*'
+
+jobs:
+  test:
+    name: Test on Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.7.17', '3.8.18', '3.9.19', '3.10.14', '3.11.9', '3.12.5']
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pylint pycodestyle mypy pytest pytest-cov coverage paramiko types-paramiko
+
+      - name: Run pylint
+        run: pylint paramiko_jump
+
+      - name: Run pycodestyle
+        run: pycodestyle paramiko_jump
+
+      - name: Run mypy
+        run: mypy paramiko_jump
+
+  build:
+    name: Build distribution
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install pypa/build
+        run: >-
+          python3 -m
+          pip install
+          build
+          --user
+      - name: Build a binary wheel and a source tarball
+        run: python3 -m build
+      - name: Store the distribution packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+
+
+  publish-to-pypi:
+      name: >-
+        Publish Package to PyPI
+      if: startsWith(github.ref, 'refs/tags/')  # only publish to PyPI on tag pushes
+      needs:
+        - test
+        - build
+      runs-on: ubuntu-latest
+      environment:
+        name: pypi
+        url: https://pypi.org/p/paramiko-jump
+      permissions:
+        id-token: write
+      steps:
+        - name: Download all the dists
+          uses: actions/download-artifact@v4
+          with:
+            name: python-package-distributions
+            path: dist/
+        - name: Publish distribution to PyPI
+          uses: pypa/gh-action-pypi-publish@release/v1
+
+  publish-to-testpypi:
+      name: Publish Package to TestPyPI
+      if: github.ref != 'refs/tags/*'
+      needs:
+        - test
+        - build
+      runs-on: ubuntu-latest
+
+      environment:
+        name: testpypi
+        url: https://test.pypi.org/p/paramiko-jump
+
+      permissions:
+        id-token: write
+
+      steps:
+      - name: Download all the dists
+        uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+      - name: Publish distribution to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
