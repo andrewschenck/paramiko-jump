@@ -19,21 +19,18 @@ additional features:
 programmer to build a 'stack' of proxied SSH sessions, and tunnel commands through infrastructure
 as-needed.
 
-2) Easy authentication scheme override, forcing a keyboard-interactive authentication approach to be
-used. This should support most 2FA / MFA infrastructure approaches to SSH authentication. The 
-keyboard-interactive authentication handler is injected, permitting easy integration with more 
-advanced use cases.
-
-Additionally, this package includes a special object which can provide Paramiko with everything it 
-needs to successfully authenticate with a remote system using MFA infrastructure and single-use 
-tokens.
-
+2) Easy authentication scheme override, allowing for keyboard-interactive authentication as well as
+fully-automated authentication through 2FA / MFA infrastructure. This package includes 
+authentication handlers which can handle either use case.
 
 
 ## Installing paramiko-jump
 Paramiko-jump is now available on PyPI, so you can readily install it with pip:
 
-    ```pip install paramiko-jump```
+```bash
+pip install paramiko-jump
+```
+
 
 
 
@@ -245,6 +242,11 @@ The ```MagicAuthHandler``` class is a more advanced handler that can be used to 
 authentication sessions with automation -- even through MFA infrastructure. This is accomplished by
 feeding the handler a sequence of responses which will be required during the authentication 
 session, such as a password and OTP. Each item in the sequence should be a Python list.
+
+It goes without saying that, you must figure out what your MFA infrastructure is expecting and
+provide the correct responses in the correct order. This is a powerful tool, but it can take a bit
+of tinkering to get it right for your environment.
+
 
 ```python
 ##
