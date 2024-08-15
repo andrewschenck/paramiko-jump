@@ -35,55 +35,97 @@ tokens.
 
 
 
-## Quick Start: I don't need Jump Host features
+
+## Usage Examples
+
+
+### Quick Start: I don't need Jump Host / SSH Proxying features
 
 If you don't need the Jump Host features but DO need to handle multi-factor authentication,
-see the section on **Authentication Handlers**. You can use the ```simple_auth_handler``` or 
+see the section on **Authentication Handlers**. You can use the ```simple_auth_handler``` or
 ```MagicAuthHandler``` to handle your authentication to a single host without ever proxying
 another SSH session through it ('jumping').
 
 
+### SSH Proxying Usage Example 1a: Connect to a single target through a Jump Host
 
-## Usage Examples
-
-### Jump Host Usage Example 1: Connect to a single target through a Jump Host
-
-In this example, we use keyboard-interactive authentication on the Jump Host, and we tell Paramiko 
-to 'auto add' (and accept) unknown Host Keys. (What could possibly go wrong?)
+In this most basic example, we connect to a Jump Host, then connect to a Target Host through it.
+We are using keyboard-interactive authentication on the Jump Host by way of 
+```auth_handler=simple_auth_handler``` and we are passing pre-determined username and password
+credentials to the Target Host.
 
 
-    import paramiko
     from paramiko_jump import SSHJumpClient, simple_auth_handler
 
-    # My Jump Host requires keyboard-interactive multi-factor
+    ##
+    # This Jump Host requires keyboard-interactive multi-factor
     # authentication, so I use auth_handler=. Otherwise, I could
     # use paramiko.SSHClient here.
+    ##
     with SSHJumpClient(auth_handler=simple_auth_handler) as jumper:
-        jumper.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         jumper.connect(
             hostname='jump-host',
             username='jump-user',
         )
 
+        ##
         # Now I instantiate a session for the Jump Host <-> Target
         # Host connection, and inject the jump_session to use for
         # proxying.
-        target = SSHJumpClient(jump_session=jumper)
-        target.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        target.connect(
-            hostname='target-host',
-            username='target-user',
-            password='target-password',
-            look_for_keys=False,
-            allow_agent=False,
-        )
-        stdin, stdout, stderr = target.exec_command('sh ip int br')
-        output = stdout.readlines()
-        print(output)
-        target.close()
+        ##
+        with SSHJumpClient(jump_session=jumper) as target:
+            target.connect(
+                hostname='target-host',
+                username='target-user',
+                password='target-password',
+                look_for_keys=False,
+                allow_agent=False,
+            )
+            stdin, stdout, stderr = target.exec_command('sh ip int br')
+            output = stdout.readlines()
+            print(output)
 
 
-### Jump Host Example 2: Open one Jump Channel, connect to multiple targets
+### SSH Proxying Usage Example 1b: Connect to a single target through a Jump Host
+
+This example is functionally equivalent to Example 1a, with two key changes:
+
+1) It doesn't use the context manager.
+2) It applies paramiko.AutoAddPolicy() as the missing host key policy to the Jump Host and 
+Target Host connections -- this tells the SSH processes to 'auto accept' the host key if it's not 
+already known (be cautious!)
+
+
+    import paramiko
+    from paramiko_jump import SSHJumpClient, simple_auth_handler
+
+    jumper = SSHJumpClient(auth_handler=simple_auth_handler)
+    jumper.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    jumper.connect(
+        hostname='jump-host',
+        username='jump-user',
+    )
+
+    # Now I instantiate a session for the Jump Host <-> Target
+    # Host connection, and inject the jump_session to use for
+    # proxying.
+    target = SSHJumpClient(jump_session=jumper)
+    target.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    target.connect(
+        hostname='target-host',
+        username='target-user',
+        password='target-password',
+        look_for_keys=False,
+        allow_agent=False,
+    )
+    stdin, stdout, stderr = target.exec_command('sh ip int br')
+    output = stdout.readlines()
+    print(output)
+    target.close()
+
+
+### SSH Proxying Example 2: Open one Jump Channel, connect to multiple targets
+
 
     from getpass import getpass
 
@@ -122,7 +164,7 @@ to 'auto add' (and accept) unknown Host Keys. (What could possibly go wrong?)
         target2.close()
 
 
-### Jump Host Example 3: Multiple-Hop SSH "Virtual Circuit"
+### SSH Proxying Example 3: Multiple-Hop SSH "Virtual Circuit"
 
 You can build a 'virtual circuit' out of multiple SSH connections, each one proxying through 
 the previous.
@@ -267,9 +309,17 @@ session, such as a password and OTP. Each item in the sequence should be a Pytho
 
 
 
-### Troubleshooting Authentication Failures
+## Troubleshooting
 
+
+### Authentication Failures
 When troubleshooting authentication failures, remember that Paramiko will be authenticating as a
 client on each 'hop', and that it has strong preferences over which authentication scheme it will
 be using. You can control authentication behavior by passing various parameters to the
 ```connect()``` call. Read ```paramiko.SSHClient._auth``` for more insight into how this works.
+
+
+### "Missing Host Key" Errors
+See Usage Example 1b for an example of how to use ```paramiko.AutoAddPolicy()``` to automatically
+accept unknown host keys. This is a dangerous practice, but it can be useful for testing and
+development.
