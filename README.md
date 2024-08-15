@@ -220,6 +220,8 @@ session, such as a password and OTP. Each item in the sequence should be a Pytho
         print(output)
 
 
+### Password-Only Authentication
+
 ### SSH Key-Based Authentication
 
     ##
@@ -237,11 +239,29 @@ session, such as a password and OTP. Each item in the sequence should be a Pytho
     with SSHJumpClient() as jumper:
         jumper.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         jumper.connect(
-            hostname='somehost.somedomain.com',
+            hostname='somehost.example.com',
             username='username,
             look_for_keys=True,
         )
         stdin, stdout, stderr = jumper.exec_command('uptime')
+        output = stdout.readlines()
+        print(output)
+
+
+### User/Password Authentication
+        
+    ##
+    # User/Password Authentication
+    ##
+    with SSHJumpClient() as jumper:
+        jumper.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        jumper.connect(
+            hostname='somehost.example.com',
+            username='ubuntu',
+            password='password',
+            look_for_keys=False,
+        )
+        _, stdout, _ = jumper.exec_command('ls')
         output = stdout.readlines()
         print(output)
 
