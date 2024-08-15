@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - '**'
-#  pull_request:
-#    branches:
-#      - main
     tags:
       - 'v*'
 
@@ -49,13 +46,13 @@ jobs:
           coverage report
           coverage xml
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          file: coverage.xml
-          flags: unittests
-          name: codecov-umbrella
-          fail_ci_if_error: true
+#      - name: Upload coverage to Codecov
+#        uses: codecov/codecov-action@v3
+#        with:
+#          file: coverage.xml
+#          flags: unittests
+#          name: codecov-umbrella
+#          fail_ci_if_error: true
 
 
   build:
