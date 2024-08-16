@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - '**'
-#  pull_request:
-#    branches:
-#      - main
     tags:
       - 'v*'
 
@@ -15,10 +12,10 @@ jobs:
 
   test:
     name: Test on Python ${{ matrix.python-version }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
-        python-version: ['3.7.17', '3.8.18', '3.9.19', '3.10.14', '3.11.9', '3.12.5']
+        python-version: ['3.6.15', '3.7.17', '3.8.18', '3.9.19', '3.10.14', '3.11.9', '3.12.5']
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -41,6 +38,21 @@ jobs:
 
       - name: Run mypy
         run: mypy paramiko_jump
+
+
+      - name: Run tests with coverage
+        run: |
+          coverage run -m pytest tests
+          coverage report --omit='tests/*'
+          coverage xml --omit='tests/*'
+
+#      - name: Upload coverage to Codecov
+#        uses: codecov/codecov-action@v3
+#        with:
+#          file: coverage.xml
+#          flags: unittests
+#          name: codecov-umbrella
+#          fail_ci_if_error: true
 
 
   build:
