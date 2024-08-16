@@ -36,15 +36,23 @@ pip install paramiko-jump
 
 # Usage Examples
 
-## Quick Start: I don't need Jump Host / SSH Proxying features
+## You Can Use Authenticate However You Want
+
+Within this document are numerous examples of how to use paramiko-jump to authenticate to a remote
+host as well as how to use it to proxy SSH sessions, but not all possible permutations are
+documented here. It's important to know that **you can use any authentication scheme demonstrated
+in these examples, with or without the proxying feature, as long as your SSH infrastructure 
+supports it.**
+
+
+## Quick Start: I need to solve MFA but I don't need SSH Proxying features
 
 If you don't need the Jump Host features but DO need to handle multi-factor authentication,
 these next examples are for you. 
 
 You can use the ```simple_auth_handler``` or ```MagicAuthHandler``` to handle your 
-authentication to a single host without ever proxying another SSH session through it ('jumping').
-Just pick an authentication approach (many examples are given within this README) and you
-should be good to go.
+authentication to a single host without ever proxying another SSH session through it ('jumping'.)
+Just pick an authentication approach and go.
 
 
 ## Authentication Handlers 
