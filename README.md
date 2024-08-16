@@ -9,7 +9,6 @@ This seems to be a surprisingly common problem with a lot of not-very-working so
 I'd share my attempt with the world.
 
 
-
 ## The Solution
 
 A simple class, ``SSHJumpClient``, which derives from ``paramiko.SSHClient`` and implements two
@@ -21,7 +20,7 @@ as-needed.
 
 2) Easy authentication scheme override, allowing for keyboard-interactive authentication as well as
 fully-automated authentication through 2FA / MFA infrastructure. This package includes 
-authentication handlers which can handle either use case.
+authentication handlers which can handle either use case, and more.
 
 
 ## Installing paramiko-jump
@@ -32,40 +31,189 @@ pip install paramiko-jump
 ```
 
 
+**********************
 
 
-## Usage Examples
+# Usage Examples
 
-
-### Quick Start: I don't need Jump Host / SSH Proxying features
+## Quick Start: I don't need Jump Host / SSH Proxying features
 
 If you don't need the Jump Host features but DO need to handle multi-factor authentication,
-see the section on **Authentication Handlers**. You can use the ```simple_auth_handler``` or
-```MagicAuthHandler``` to handle your authentication to a single host without ever proxying
-another SSH session through it ('jumping').
+these next examples are for you. 
+
+You can use the ```simple_auth_handler``` or ```MagicAuthHandler``` to handle your 
+authentication to a single host without ever proxying another SSH session through it ('jumping').
+Just pick an authentication approach (many examples are given within this README) and you
+should be good to go.
 
 
-### SSH Proxying Example 1a: Connect to a single target through a Jump Host
+## Authentication Handlers 
 
-In this most basic example, we connect to a Jump Host, then connect to a Target Host through it.
-We are using keyboard-interactive authentication on the Jump Host by way of 
-```auth_handler=simple_auth_handler``` and we are passing pre-determined username and password
-credentials to the Target Host.
+In order to successfully authenticate with infrastructure requiring keyboard-interactive and/or
+multi-factor authentication, you will probably want to explicitly pass in auth_handler= during 
+client construction. You can use the included handlers, or you can write your own.
 
 
+### Authentication Handler Example 1: Keyboard-Interactive
+
+A basic handler callable is included, and should work for most keyboard-interactive use cases. In
+this example, we supply a username and will be prompted for any passwords/tokens that are needed in
+order to authenticate.
+
+If you choose to use the ```simple_auth_handler```, paramiko will prompt you for any passwords or
+tokens that are required for authentication, and will ignore other authentication methods (such as
+SSH keys) even if you pass in authentication-related parameters. It will even ignore any
+password value you pass in, because it's expecting to get it via the handler.
+
+#### Keyboard-Interactive Authentication using the simple_auth_handler
 ```python
 from paramiko_jump import SSHJumpClient, simple_auth_handler
 
+with SSHJumpClient(auth_handler=simple_auth_handler) as jumper:
+    jumper.connect(
+        hostname='somehost.example.com',
+        username='username',
+        look_for_keys=False,
+    )
+stdin, stdout, stderr = jumper.exec_command('uptime')
+output = stdout.readlines()
+print(output)
+```
+
+
+### Authentication Handler Example 2: MultiFactor Authentication
+
+The ```MagicAuthHandler``` class is a more advanced handler that can be used to accomplish complex 
+authentication sessions with automation -- even through MFA infrastructure. This is accomplished by
+feeding the handler a sequence of responses which will be required during the authentication 
+session, such as a password and OTP. Each item in the sequence should be a Python list.
+
+It goes without saying that, you must figure out what your MFA infrastructure is expecting and
+provide the correct responses in the correct order. This is a powerful tool, but it can take a bit
+of tinkering to get it right for your environment.
+
+In this example, my MFA infrastucture is first going to require that I authenticate with
+my password, and then I have to enter '1' to instruct the infrastructure to push an
+authentication request to my authenticator (phone app.)
+
+#### Multi-Factor Authentication using the MagicAuthHandler
+```python
+from paramiko_jump import SSHJumpClient, MagicAuthHandler
+
+handler = MagicAuthHandler(['password'], ['1'])  # Note that the handler responses are lists! 
+
+with SSHJumpClient(auth_handler=handler) as jumper:
+    jumper.connect(
+        hostname='somehost.example.com',
+        username='username', 
+        look_for_keys=False,
+    )
+    stdin, stdout, stderr = jumper.exec_command('uptime')
+    output = stdout.readlines()
+    print(output)
+```
+
+
+## Simpler Authentication Schemes
+
+In general, unless you want keyboard interactive authentication (See: ```simple_auth_handler```),
+or you want to authenticate through 2FA/MFA infrastructure (See: ```MagicAuthHandler```),
+you probably want to authenticate to a host in one of the following ways:
+
+
+### Simple Authentication Example 1: Use an SSH key with ssh-agent
+
+If you have an SSH key, you can use it to authenticate instead of using keyboard-interactive
+authentication.
+
+By default, paramiko will even use your ssh-agent, if one is running.
+
+In this example, the private key is managed by ssh-agent, but you can add a passphrase=
+parameter to the connect() call if you have a passphrase-protected key and aren't using
+ssh-agent.
+
+#### SSH Key Authentication using ssh-agent
+```python
+from paramiko_jump import SSHJumpClient
+
+with SSHJumpClient() as jumper:
+    jumper.connect(
+        hostname='somehost.example.com',
+        username='username',
+        look_for_keys=True,
+    )
+```
+
+
+### Simple Authentication Example 2: Use an SSH key with a passhphrase
+
+In this example, we have an SSH key, and we have a passphrase to unlock it, that we've somehow
+fetched from a secure secrets store and exposed to Python in a secure manner.
+
+#### SSH Key Authentication using a passphrase-protected key, ssh-agent ignored
+```python
+from paramiko_jump import SSHJumpClient
+
+with SSHJumpClient() as jumper:
+    jumper.connect(
+        hostname='somehost.example.com',
+        username='username',
+        passphrase='mykeypassphrase',
+        look_for_keys=True,
+        allow_agent=False,
+    )
+```
+
+
+### Simple Authentication Example 3: Ignore SSH keys, use Username/Password authentication
+
+In this example, we may have an SSH key configured, but in order to succesfully authenticate with
+the remote host, we need to use a username and password. We explicitly tell paramiko to ignore any
+keys it finds, because we don't want it to try to use them as the keys will fail to authenticate.
+
+#### Basic (Username/Password) Authentication
+```python
+from paramiko_jump import SSHJumpClient
+
+with SSHJumpClient() as jumper:
+    jumper.connect(
+        hostname='somehost.example.com',
+        username='username',
+        password='password',
+        look_for_keys=False,
+    )
+```
+
+
+## SSH Proxying / "Jump Host" Support
+
+If you need to proxy your SSH session through a Jump Host, this is how to do it. Note that the
+following examples are primarily using the ```simple_auth_handler``` for authentication, but 
+you can use any authentication scheme you like for either Jump Host or Target Host, as long as
+your SSH infrastructure supports it.
+
+
+### SSH Proxying Example 1a: Connect to a single Target Host through a Jump Host
+
+In this example, we connect to a Jump Host, then connect to a Target Host through it.
+We are using keyboard-interactive authentication on the Jump Host by way of
+```auth_handler=simple_auth_handler``` and we are passing pre-determined username and password
+credentials to the Target Host.
+
+#### Keyboard-Interactive Authentication on the Jump Host, Basic Authentication on the Target Host
+```python
+from paramiko_jump import SSHJumpClient, simple_auth_handler
 
 ##
-# This Jump Host requires keyboard-interactive multi-factor
-# authentication, so I use auth_handler=. Otherwise, I could
-# use paramiko.SSHClient here.
+# Because I'm passing in ```simple_auth_handler```, I will be prompted for any passwords or
+# tokens that are required for authentication. This is how to do keyboard-interactive SSH
+# authentication.
 ##
 with SSHJumpClient(auth_handler=simple_auth_handler) as jumper:
     jumper.connect(
         hostname='jump-host',
         username='jump-user',
+        look_for_keys=False,
     )
 
     ##
@@ -92,11 +240,12 @@ with SSHJumpClient(auth_handler=simple_auth_handler) as jumper:
 This example is functionally equivalent to Example 1a, with two key changes:
 
 1) It doesn't use the context manager.
-2) It applies paramiko.AutoAddPolicy() as the missing host key policy to the Jump Host and 
-Target Host connections -- this tells the SSH processes to 'auto accept' the host key if it's not 
-already known (be cautious!)
+2) It applies paramiko.AutoAddPolicy() as the missing host key policy to the Jump Host and
+   Target Host connections -- this tells the SSH processes to 'auto accept' the host key if it's not
+   already known (be cautious!)
 
 
+#### Keyboard-Interactive Authentication on the Jump Host, Basic Authentication on the Target Host
 ```python
 import paramiko
 from paramiko_jump import SSHJumpClient, simple_auth_handler
@@ -107,6 +256,7 @@ jumper.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 jumper.connect(
     hostname='jump-host',
     username='jump-user',
+    look_for_keys=False,
 )
 
 target = SSHJumpClient(jump_session=jumper)
@@ -128,6 +278,7 @@ target.close()
 ### SSH Proxying Example 2: Open one Jump Channel, connect to multiple targets
 
 
+#### Keyboard-Interactive Authentication on the Jump Host, Basic Authentication on the Target Hosts
 ```python
 from paramiko_jump import SSHJumpClient, simple_auth_handler
 
@@ -168,9 +319,10 @@ with SSHJumpClient(auth_handler=simple_auth_handler) as jumper:
 
 ### SSH Proxying Example 3: Multiple-Hop SSH "Virtual Circuit"
 
-You can build a 'virtual circuit' out of multiple SSH connections, each one proxying through 
+You can build a 'virtual circuit' out of multiple SSH connections, each one proxying through
 the previous.
 
+#### This example lacks authentication parameters, and exists to illustrate the concept.
 ```python
 from paramiko_jump import SSHJumpClient
 
@@ -204,134 +356,25 @@ for session in reversed(circuit):
 ```
 
 
+# Troubleshooting
 
-**********************
+## Authentication Issues
 
-## Authentication Handlers
+Remember to use the Authentication Handlers (or make your own) to help manage your more complex
+use cases. Injecting the correct handler can make all the difference in the world.
 
-In order to successfully authenticate with infrastructure requiring keyboard-interactive 
-multi-factor authentication, you will probably want to explicitly pass in auth_handler= during 
-client construction.
-
-
-### simple_auth_handler
-
- A basic handler callable is included, and should work for most keyboard-interactive use cases:
-
-```python
-##
-# Keyboard-Interactive Authentication using simple_auth_handler
-##
-
-from paramiko_jump import SSHJumpClient, simple_auth_handler
-
-with SSHJumpClient(auth_handler=simple_auth_handler) as jumper:
-    jumper.connect(
-        hostname='somehost.example.com',
-        username='username',
-        look_for_keys=False,
-    )
-stdin, stdout, stderr = jumper.exec_command('uptime')
-output = stdout.readlines()
-print(output)
-```
-
-
-### MagicAuthHandler
-
-The ```MagicAuthHandler``` class is a more advanced handler that can be used to accomplish complex 
-authentication sessions with automation -- even through MFA infrastructure. This is accomplished by
-feeding the handler a sequence of responses which will be required during the authentication 
-session, such as a password and OTP. Each item in the sequence should be a Python list.
-
-It goes without saying that, you must figure out what your MFA infrastructure is expecting and
-provide the correct responses in the correct order. This is a powerful tool, but it can take a bit
-of tinkering to get it right for your environment.
-
-
-```python
-##
-# Multi-Factor Authentication using the MagicAuthHandler
-##
-
-from paramiko_jump import SSHJumpClient, MagicAuthHandler
-
-handler = MagicAuthHandler(['password'], ['1'])
-# First call to handler will return ['password']
-# Second call to handler will return ['1']
-
-with SSHJumpClient(auth_handler=handler) as jumper:
-    jumper.connect(
-        hostname='somehost.example.com',
-        username='username',
-        look_for_keys=False,
-    )
-    stdin, stdout, stderr = jumper.exec_command('uptime')
-    output = stdout.readlines()
-    print(output)
-```
-
-
-### Password-Only Authentication
-
-### SSH Key-Based Authentication
-
-```python
-##
-# If I have an SSH key, I can use it to authenticate instead of using keyboard-interactive
-# authentication.
-#
-# In this example, my private key is managed by ssh-agent, but you can add a passphrase=
-# parameter to the connect() call if you have a passphrase-protected key and aren't using
-# ssh-agent.
-##
-
-from paramiko_jump import SSHJumpClient
-with SSHJumpClient() as jumper:
-    jumper.connect(
-        hostname='somehost.example.com',
-        username='username',
-        look_for_keys=True,
-    )
-    stdin, stdout, stderr = jumper.exec_command('uptime')
-    output = stdout.readlines()
-    print(output)
-```
-
-
-### User/Password Authentication
-```python
-    
-##
-# User/Password Authentication
-##
-from paramiko_jump import SSHJumpClient
-with SSHJumpClient() as jumper:
-    jumper.connect(
-        hostname='somehost.example.com',
-        username='ubuntu',
-        password='password',
-        look_for_keys=False,
-    )
-    _, stdout, _ = jumper.exec_command('ls')
-    output = stdout.readlines()
-    print(output)
-```
-
-
-
-
-## Troubleshooting
-
-
-### Authentication Failures
 When troubleshooting authentication failures, remember that Paramiko will be authenticating as a
 client on each 'hop', and that it has strong preferences over which authentication scheme it will
 be using. You can control authentication behavior by passing various parameters to the
 ```connect()``` call. Read ```paramiko.SSHClient._auth``` for more insight into how this works.
 
+If you aren't using key-based authentication, it's safest to explicitly set
+```look_for_keys=False```. This will prevent Paramiko from trying to use any keys it finds, which
+can take it down the wrong code path.
 
-### "Missing Host Key" Errors
-See Usage Example 1b for an example of how to use ```paramiko.AutoAddPolicy()``` to automatically
-accept unknown host keys. This is a dangerous practice, but it can be useful for testing and
-development.
+
+## Missing Host Key Errors
+
+See **SSH Proxying Example 1b** for an example of how to use ```paramiko.AutoAddPolicy()``` to 
+automatically accept unknown host keys. This is a dangerous practice, but it can be useful 
+for testing and development.
