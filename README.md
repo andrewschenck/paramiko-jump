@@ -102,7 +102,7 @@ of tinkering to get it right for your environment.
 
 In this example, my MFA infrastucture is first going to require that I authenticate with
 my password, and then I have to enter '1' to instruct the infrastructure to push an
-authentication request to my authenticator (phone app.)
+authentication request to my mobile authenticator.
 
 #### Multi-Factor Authentication using the MagicAuthHandler
 ```python
@@ -368,18 +368,21 @@ for session in reversed(circuit):
 
 ## Authentication Issues
 
-Remember to use the Authentication Handlers (or make your own) to help manage your more complex
+* Remember to use the Authentication Handlers (or make your own) to help manage your more complex
 use cases. Injecting the correct handler can make all the difference in the world.
 
-When troubleshooting authentication failures, remember that Paramiko will be authenticating as a
-client on each 'hop', and that it has strong preferences over which authentication scheme it will
-be using. You can control authentication behavior by passing various parameters to the
+* If you have injected an authentication handler, Paramiko will use that to handle the
+  authentication process, and it will take precedence over other authentication parameters you pass
+  in.
+
+* When troubleshooting authentication failures, remember that Paramiko will be authenticating as
+a client on each 'hop', and that it has strong preferences over which authentication scheme it
+will be using. You can control authentication behavior by passing various parameters to the
 ```connect()``` call. Read ```paramiko.SSHClient._auth``` for more insight into how this works.
 
-If you aren't using key-based authentication, it's safest to explicitly set
+* If you aren't using key-based authentication, it's safest to explicitly set
 ```look_for_keys=False```. This will prevent Paramiko from trying to use any keys it finds, which
 can take it down the wrong code path.
-
 
 ## Missing Host Key Errors
 
