@@ -36,7 +36,7 @@ pip install paramiko-jump
 
 # Usage Examples
 
-## You Can Use Authenticate However You Want
+## You Can Authenticate However You Want
 
 Within this document are numerous examples of how to use paramiko-jump to authenticate to a remote
 host as well as how to use it to proxy SSH sessions, but not all possible permutations are
@@ -62,7 +62,7 @@ multi-factor authentication, you will probably want to explicitly pass in auth_h
 client construction. You can use the included handlers, or you can write your own.
 
 
-### Authentication Handler Example 1: Keyboard-Interactive
+### Authentication Handler Example 1: Keyboard-Interactive (Any Authentication Scheme)
 
 A basic handler callable is included, and should work for most keyboard-interactive use cases. In
 this example, we supply a username and will be prompted for any passwords/tokens that are needed in
@@ -89,7 +89,7 @@ print(output)
 ```
 
 
-### Authentication Handler Example 2: MultiFactor Authentication
+### Authentication Handler Example 2: MultiFactor Authentication using the MagicAuthHandler
 
 The ```MagicAuthHandler``` class is a more advanced handler that can be used to accomplish complex 
 authentication sessions with automation -- even through MFA infrastructure. This is accomplished by
