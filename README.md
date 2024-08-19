@@ -50,7 +50,7 @@ supports it.**
 If you don't need the Jump Host features but DO need to handle multi-factor authentication,
 these next examples are for you. 
 
-You can use the ```simple_auth_handler``` or ```MagicAuthHandler``` to handle your 
+You can use the ```simple_auth_handler``` or ```MultiFactorAuthHandler``` to handle your 
 authentication to a single host without ever proxying another SSH session through it ('jumping'.)
 Just pick an authentication approach and go.
 
@@ -89,31 +89,33 @@ print(output)
 ```
 
 
-### Authentication Handler Example 2: MultiFactor Authentication using the MagicAuthHandler
+### Authentication Handler Example 2: MultiFactor Authentication using the MultiFactorAuthHandler
 
-The ```MagicAuthHandler``` class is a more advanced handler that can be used to accomplish complex 
-authentication sessions with automation -- even through MFA infrastructure. This is accomplished by
-feeding the handler a sequence of responses which will be required during the authentication 
-session, such as a password and OTP. Each item in the sequence should be a Python list.
+The ```MultiFactorAuthHandler``` class is a more advanced handler that can be used to accomplish 
+complex authentication sessions with automation -- even through MFA infrastructure. This is
+accomplished by seeding the handler with a sequence of responses which will be required during
+the authentication session, such as a password and OTP.
 
 It goes without saying that, you must figure out what your MFA infrastructure is expecting and
 provide the correct responses in the correct order. This is a powerful tool, but it can take a bit
 of tinkering to get it right for your environment.
 
-In this example, my MFA infrastucture is first going to require that I authenticate with
-my password, and then I have to enter '1' to instruct the infrastructure to push an
-authentication request to my mobile authenticator.
+In this next example, my MFA infrastucture is first going to require that I authenticate with my 
+password, and then I have to enter '1' to instruct the infrastructure to push an authentication
+request to my mobile authenticator.
 
-#### Multi-Factor Authentication using the MagicAuthHandler
+#### Multi-Factor Authentication using the MultiFactorAuthHandler
 ```python
-from paramiko_jump import SSHJumpClient, MagicAuthHandler
+from paramiko_jump import SSHJumpClient, MultiFactorAuthHandler
 
-handler = MagicAuthHandler(['password'], ['1'])  # Note that the handler responses are lists! 
+handler = MultiFactorAuthHandler()
+handler.add('password')  # Just add strings to the handler in the order they are needed
+handler.add('1')
 
 with SSHJumpClient(auth_handler=handler) as jumper:
     jumper.connect(
         hostname='somehost.example.com',
-        username='username', 
+        username='username',
         look_for_keys=False,
     )
     stdin, stdout, stderr = jumper.exec_command('uptime')
@@ -125,7 +127,7 @@ with SSHJumpClient(auth_handler=handler) as jumper:
 ## Simpler Authentication Schemes
 
 In general, unless you want keyboard interactive authentication (See: ```simple_auth_handler```),
-or you want to authenticate through 2FA/MFA infrastructure (See: ```MagicAuthHandler```),
+or you want to authenticate through 2FA/MFA infrastructure (See: ```MultiFactorAuthHandler```),
 you probably want to authenticate to a host in one of the following ways:
 
 
@@ -243,7 +245,7 @@ with SSHJumpClient(auth_handler=simple_auth_handler) as jumper:
 ```
 
 
-### SSH Proxying Example 1b: Connect to a single target through a Jump Host
+### SSH Proxying Example 1b: Connect to a single Target Host through a Jump Host
 
 This example is functionally equivalent to Example 1a, with two key changes:
 
@@ -283,45 +285,58 @@ target.close()
 ```
 
 
-### SSH Proxying Example 2: Open one Jump Channel, connect to multiple targets
+### SSH Proxying Example 2: Open one jump channel, connect to multiple Target Hosts
 
 
-#### Keyboard-Interactive Authentication on the Jump Host, Basic Authentication on the Target Hosts
+#### MFA on the Jump Host, Basic Authentication on the Target Hosts
 ```python
-from paramiko_jump import SSHJumpClient, simple_auth_handler
+import os
+from paramiko_jump import SSHJumpClient, MultiFactorAuthHandler
 
+password = os.getenv('JUMP_HOST_PASSWORD')
+handler = MultiFactorAuthHandler()
+handler.add(password)
+handler.add('1')
 
-with SSHJumpClient(auth_handler=simple_auth_handler) as jumper:
+with SSHJumpClient(auth_handler=handler) as jumper:
     jumper.connect(
         hostname='jump-host',
-        username='jump-user',
+        username='username',
+        look_for_keys=False,
     )
 
-    target1 = SSHJumpClient(jump_session=jumper)
-    target1.connect(
-        hostname='target-host1',
-        username='username',
-        password='password',
-        look_for_keys=False,
-        allow_agent=False,
-    )
-    stdin, stdout, stderr = target1.exec_command('sh ver')
-    output = stdout.readlines()
-    print(output)
-    target1.close()
+    with SSHJumpClient(jump_session=jumper) as target1:
+        target1.connect(
+            hostname='target-host1',
+            username='username',
+            password='password',
+            look_for_keys=False,
+        )
+        _, stdout, _ = target1.exec_command('uptime')
+        output = stdout.readlines()
+        print(output)
 
-    target2 = SSHJumpClient(jump_session=jumper)
-    target2.connect(
-        hostname='target-host2',
-        username='username',
-        password='password',
-        look_for_keys=False,
-        allow_agent=False,
-    )
-    _, stdout, _ = target2.exec_command('sh ip int br')
-    output = stdout.readlines()
-    print(output)
-    target2.close()
+    with SSHJumpClient(jump_session=jumper) as target2:
+        target2.connect(
+            hostname='target-host2',
+            username='username',
+            password='password',
+            look_for_keys=False,
+        )
+        _, stdout, _ = target2.exec_command('uptime')
+        output = stdout.readlines()
+        print(output)
+
+    with SSHJumpClient(jump_session=jumper) as target3:
+        target2.connect(
+            hostname='target-host3',
+            username='username',
+            password='password',
+            look_for_keys=False,
+        )
+        _, stdout, _ = target2.exec_command('uptime')
+        output = stdout.readlines()
+        print(output)
 ```
 
 

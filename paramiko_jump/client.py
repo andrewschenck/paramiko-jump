@@ -16,6 +16,7 @@ __all__ = (
     'SSHJumpClient',
 )
 
+
 from typing import Callable, Optional
 
 from paramiko.client import SSHClient

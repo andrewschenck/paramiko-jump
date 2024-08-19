@@ -8,11 +8,22 @@ multi-factor-authentication.
 
 """
 
+import logging
+
 from paramiko_jump.client import SSHJumpClient
-from paramiko_jump.handler import MagicAuthHandler, simple_auth_handler
+from paramiko_jump.handler import (
+    MagicAuthHandler,
+    MultiFactorAuthHandler,
+    simple_auth_handler,
+)
+
+
+logging.getLogger(__name__).addHandler(logging.NullHandler())
+
 
 __all__ = (
     'MagicAuthHandler',
+    'MultiFactorAuthHandler',
     'SSHJumpClient',
     'simple_auth_handler',
 )

@@ -1,6 +1,11 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from paramiko_jump import SSHJumpClient, simple_auth_handler, MagicAuthHandler
+from paramiko import SSHClient
+from paramiko_jump import (
+    MagicAuthHandler,
+    SSHJumpClient,
+    simple_auth_handler,
+)
 
 
 class TestSSHJumpClientUnit(unittest.TestCase):
@@ -69,8 +74,25 @@ class TestSSHJumpClientUnit(unittest.TestCase):
         client = SSHJumpClient()
         self.assertEqual(str(client), "SSHJumpClient")
 
-    @patch('paramiko_jump.client.SSHJumpClient._auth')
+    # @patch('paramiko_jump.client.SSHJumpClient._auth')
+    @patch('paramiko.client.SSHClient._auth')
     def test_auth_with_handler(self, mock_auth):
+        handler = MagicMock()
+        client = SSHJumpClient(auth_handler=handler)
+        client._transport = MagicMock()
+        client._auth('username', None, None, None, None, None, None, None, None, None, None)
+        # mock_auth.assert_called()
+
+    # @patch('paramiko_jump.client.SSHJumpClient._auth')
+    @patch('paramiko.client.SSHClient._auth')
+    def test_auth_without_handler(self, mock_auth):
+        client = SSHJumpClient()
+        client._transport = MagicMock()
+        client._auth('username', None, None, None, None, None, None, None, None, None, None)
+        # mock_auth.assert_called()
+
+    @patch('paramiko_jump.client.SSHJumpClient._auth')
+    def test_auth_with_handler_again(self, mock_auth):
         handler = MagicMock()
         client = SSHJumpClient(auth_handler=handler)
         client._transport = MagicMock()
@@ -78,7 +100,7 @@ class TestSSHJumpClientUnit(unittest.TestCase):
         mock_auth.assert_called()
 
     @patch('paramiko_jump.client.SSHJumpClient._auth')
-    def test_auth_without_handler(self, mock_auth):
+    def test_auth_without_handler_again(self, mock_auth):
         client = SSHJumpClient()
         client._transport = MagicMock()
         client._auth('username', None, None, None, None, None, None, None, None, None, None)
@@ -93,9 +115,9 @@ class TestSSHJumpClientUnit(unittest.TestCase):
     #     client.connect(hostname='somehost.example.com', username='username')
     #     mock_transport.open_channel.assert_called()
 
-    def test_invalid_jump_session(self):
-        with self.assertRaises(TypeError):
-            SSHJumpClient(jump_session="invalid_session")
+    # def test_invalid_jump_session(self):
+    #     with self.assertRaises(TypeError):
+    #         SSHJumpClient(jump_session="invalid_session")
 
     # @patch('paramiko_jump.client.SSHJumpClient.connect')
     # def test_connect_with_transport_factory(self, mock_transport):
@@ -110,6 +132,29 @@ class TestSSHJumpClientUnit(unittest.TestCase):
     #     client = SSHJumpClient()
     #     client.connect(hostname='somehost.example.com', disabled_algorithms={'kex': ['diffie-hellman-group1-sha1']})
     #     mock_transport.set_disabled_algorithms.assert_called_with({'kex': ['diffie-hellman-group1-sha1']})
+
+
+class TestSSHJumpClientJumpSession(unittest.TestCase):
+
+    @patch('paramiko_jump.client.SSHClient.connect')
+    def test_connect_with_jump_session(self, mock_connect):
+        jump_client = MagicMock(spec=SSHClient)
+        jump_client._transport = MagicMock()
+        client = SSHJumpClient(jump_session=jump_client)
+        client.connect(hostname='somehost.example.com', username='username')
+        jump_client._transport.open_channel.assert_called()
+
+    def test_invalid_jump_session(self):
+        with self.assertRaises(TypeError):
+            SSHJumpClient(jump_session="invalid_session")
+
+    @patch('paramiko_jump.client.SSHClient.connect')
+    def test_connect_with_jump_session_and_sock(self, mock_connect):
+        jump_client = MagicMock(spec=SSHClient)
+        jump_client._transport = MagicMock()
+        client = SSHJumpClient(jump_session=jump_client)
+        with self.assertRaises(ValueError):
+            client.connect(hostname='somehost.example.com', username='username', sock=MagicMock())
 
 
 if __name__ == '__main__':
