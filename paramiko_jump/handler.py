@@ -56,13 +56,13 @@ def simple_auth_handler(
     """
     answers = []
     if title:
-        _LOG.info(title)
+        print(title)
     if instructions:
-        _LOG.info(instructions)
+        print(instructions)
 
     for prompt, show_input in prompt_list:
         input_ = input if show_input else getpass
-        answers.append(input_(prompt))  # type: ignore
+        answers.append(input_(prompt))  # type: ignore[operator]
     return answers
 
 

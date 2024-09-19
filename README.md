@@ -24,7 +24,7 @@ authentication handlers which can handle either use case, and more.
 
 
 ## Installing paramiko-jump
-Paramiko-jump is now available on PyPI, so you can readily install it with pip:
+Paramiko-jump is available on PyPI, so you can readily install it with pip:
 
 ```bash
 pip install paramiko-jump

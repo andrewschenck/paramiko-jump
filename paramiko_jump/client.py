@@ -50,7 +50,7 @@ class SSHJumpClient(SSHClient):
 
         j = self._jump_session = jump_session
         if j is not None and not hasattr(j, '_transport'):
-            raise TypeError(f'bad jump_session: {j}')
+            raise ValueError(f'bad jump_session: {j}')
         self._auth_handler = auth_handler
 
     def __repr__(self):
@@ -130,6 +130,8 @@ class SSHJumpClient(SSHClient):
                 raise ValueError('jump_session= and sock= are mutually '
                                  'exclusive')
             transport = self._jump_session._transport
+            if not hasattr(transport, 'open_channel'):
+                raise ValueError('jump_session must be connected')
             sock = transport.open_channel(
                 kind='direct-tcpip',
                 dest_addr=(hostname, port),
