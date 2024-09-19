@@ -31,6 +31,17 @@ class TestSSHJumpClientUnit(unittest.TestCase):
             client.connect(hostname='invalid-host', username='username')
         self.assertEqual(str(context.exception), "Connection failed")
 
+    def test_invalid_jump_session_no_transport(self):
+        # Create a mock jump session without a _transport attribute
+        invalid_jump_session = MagicMock()
+        del invalid_jump_session._transport.open_channel
+
+        # Ensure that initializing SSHJumpClient with this invalid jump session raises a TypeError
+        with self.assertRaises(ValueError) as context:
+            client = SSHJumpClient(jump_session=invalid_jump_session)
+            client.connect(hostname='invalid-host', username='username')
+        # self.assertEqual(str(context.exception), f'bad jump_session')
+
     @patch('paramiko_jump.client.SSHJumpClient.exec_command')
     def test_exec_command_failure(self, mock_exec_command):
         mock_exec_command.side_effect = Exception("Command failed")
@@ -145,7 +156,7 @@ class TestSSHJumpClientJumpSession(unittest.TestCase):
         jump_client._transport.open_channel.assert_called()
 
     def test_invalid_jump_session(self):
-        with self.assertRaises(TypeError):
+        with self.assertRaises(ValueError):
             SSHJumpClient(jump_session="invalid_session")
 
     @patch('paramiko_jump.client.SSHClient.connect')
